@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>연금 마일스톤 트래커</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0A0D14;--surface:#0F1117;--surface2:#141827;--border:#1A2035;--border2:#2D3548;
+    --text:#E2E8F0;--text2:#CBD5E1;--muted:#64748B;--muted2:#475569;
+    --blue:#60A5FA;--blue-bg:#1e3a5f22;--blue-bd:#1e3a5f;
+    --amber:#FBBF24;--amber-bg:#3d2b0a22;--amber-bd:#3d2b0a;
+    --green:#34D399;--green-bg:#0a332822;--green-bd:#0a3328;
+    --purple:#A78BFA;--purple-bg:#2d1b5e22;--purple-bd:#2d1b5e;
+    --red:#F87171;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',system-ui,sans-serif;min-height:100vh}
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--surface)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+  /* HEADER */
+  #header{background:var(--surface);border-bottom:1px solid var(--border);padding:22px 20px 18px;position:sticky;top:0;z-index:50}
+  #header-inner{max-width:760px;margin:0 auto}
+  #title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  #title{font-size:20px;font-weight:700;letter-spacing:-0.3px}
+  #subtitle{font-size:12px;color:var(--muted);margin-top:2px}
+  #pct-val{font-size:24px;font-weight:700;color:var(--blue);text-align:right}
+  #pct-sub{font-size:11px;color:var(--muted);text-align:right}
+  #progress-bar{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:12px}
+  #progress-fill{height:100%;background:linear-gradient(90deg,#3B82F6,#A78BFA);border-radius:3px;transition:width .4s ease}
+  #current-banner{background:var(--surface2);border:1px solid #F59E0B44;border-left:3px solid var(--amber);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  #current-label{font-size:11px;color:var(--amber);font-weight:700;white-space:nowrap}
+  #current-text{font-size:13px;color:var(--text2);flex:1}
+  #current-year{font-size:11px;color:var(--muted2);font-weight:600;white-space:nowrap}
+  #filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .filter-btn{padding:4px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--muted);transition:all .15s;font-family:inherit}
+  .filter-btn.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+  .filter-btn[data-phase="전환"].active{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
+  .filter-btn[data-phase="대기"].active{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+  .filter-btn[data-phase="인출"].active{background:var(--purple-bg);border-color:var(--purple);color:var(--purple)}
+
+  /* SYNC BAR */
+  #sync-bar{display:flex;align-items:center;gap:8px;margin-top:10px;padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px}
+  #sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);flex-shrink:0;transition:background .3s}
+  #sync-dot.ok{background:var(--green)}
+  #sync-dot.err{background:var(--red)}
+  #sync-dot.spin{background:var(--amber);animation:pulse 1s infinite}
+  #sync-msg{color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sync-action{font-size:11px;background:transparent;border:none;cursor:pointer;font-family:inherit;padding:0;white-space:nowrap;flex-shrink:0}
+  #btn-refresh{color:var(--blue)}#btn-refresh:hover{text-decoration:underline}
+  #btn-setup{color:var(--amber)}#btn-setup:hover{text-decoration:underline}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* BODY */
+  #body{max-width:760px;margin:0 auto;padding:20px 20px 60px}
+  .year-group{margin-bottom:28px}
+  .year-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .year-label{font-size:11px;font-weight:700;color:var(--muted2);letter-spacing:.08em}
+  .year-divider{flex:1;height:1px;background:var(--border)}
+  .year-count{font-size:11px;color:var(--muted2)}
+  .year-items{display:flex;flex-direction:column;gap:6px;padding-left:12px;border-left:1px solid var(--border)}
+
+  /* CARD */
+  .ms-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;transition:all .15s;position:relative}
+  .ms-card:hover{border-color:var(--border2)}
+  .ms-card.current{border-color:#F59E0B66}
+  .cur-stripe{position:absolute;left:-1px;top:8px;bottom:8px;width:3px;background:var(--amber);border-radius:2px}
+  .ms-card.done{opacity:.5}
+  .check-btn{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--border2);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;padding:0;transition:all .15s}
+  .check-btn.chk{background:var(--green);border-color:var(--green)}
+  .check-btn:hover{transform:scale(1.1)}
+  .chk-tick{color:#0A0D14;font-size:11px;font-weight:800;line-height:1}
+  .card-body{flex:1;min-width:0}
+  .card-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:3px}
+  .card-title{font-size:14px;font-weight:500;color:var(--text2)}
+  .card-title.done{text-decoration:line-through;color:var(--muted2)}
+  .pbadge{font-size:10px;padding:1px 7px;border-radius:10px;flex-shrink:0}
+  .pbadge.적립{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd)}
+  .pbadge.전환{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}
+  .pbadge.대기{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd)}
+  .pbadge.인출{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-bd)}
+  .cur-badge{font-size:10px;padding:1px 7px;border-radius:10px;background:#3D2B0A;color:var(--amber);border:1px solid #F59E0B44;flex-shrink:0}
+  .card-detail{font-size:12px;color:var(--muted2);line-height:1.55}
+  .done-info{margin-top:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+  .done-date{font-size:11px;color:var(--green);font-weight:600;white-space:nowrap}
+  .done-memo{font-size:12px;color:var(--muted);flex:1}
+  .undo-btn{font-size:11px;color:var(--muted2);background:transparent;border:none;cursor:pointer;padding:0;font-family:inherit;white-space:nowrap}
+  .undo-btn:hover{color:var(--text2)}
+
+  /* OVERLAYS */
+  .ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;align-items:center;justify-content:center;padding:20px}
+  .ov.show{display:flex}
+  .mbox{background:#161B28;border:1px solid var(--border2);border-radius:14px;padding:28px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto}
+  .mhead{font-size:13px;color:var(--blue);font-weight:600;margin-bottom:6px}
+  .mtitle{font-size:15px;color:var(--text);font-weight:500;margin-bottom:20px;line-height:1.4}
+  .ml{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;margin-top:12px}
+  .ml:first-of-type{margin-top:0}
+  .mi{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;outline:none;font-family:inherit}
+  .mi:focus{border-color:var(--blue)}
+  textarea.mi{resize:none}
+  .mbtns{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
+  .mcancel{background:transparent;border:1px solid var(--border2);border-radius:8px;padding:8px 18px;color:var(--muted);cursor:pointer;font-size:13px;font-family:inherit}
+  .mcancel:hover{border-color:var(--text2);color:var(--text2)}
+  .msave{background:#3B82F6;border:none;border-radius:8px;padding:8px 22px;color:#fff;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+  .msave:hover{background:#2563EB}
+
+  /* SETUP MODAL */
+  .setup-box{max-width:520px}
+  .sblock{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:12px;color:var(--muted2);line-height:1.7}
+  .sblock strong{color:var(--text2)}
+  .snum{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--blue-bg);border:1px solid var(--blue-bd);color:var(--blue);font-size:10px;font-weight:700;margin-right:6px;vertical-align:middle}
+  .scode{background:#0A0D14;border:1px solid var(--border2);border-radius:8px;padding:12px;margin:8px 0;font-size:11px;color:#94A3B8;font-family:'Courier New',monospace;line-height:1.7;white-space:pre;overflow-x:auto}
+  .sa{color:var(--blue);font-size:12px}
+  code{background:var(--border2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--amber);font-family:'Courier New',monospace}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="header-inner">
+    <div id="title-row">
+      <div>
+        <div id="title">📊 연금 마일스톤 트래커</div>
+        <div id="subtitle">만 52세 → 은퇴 후 연금 수령 로드맵 · 2026–2044</div>
+      </div>
+      <div>
+        <div id="pct-val">0%</div>
+        <div id="pct-sub">0/22 완료</div>
+      </div>
+    </div>
+    <div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+    <div id="current-banner">
+      <span id="current-label">📍 현재</span>
+      <span id="current-text">-</span>
+      <span id="current-year"></span>
+    </div>
+    <div id="filters">
+      <button class="filter-btn active" data-phase="전체">🔍 전체</button>
+      <button class="filter-btn" data-phase="적립">📈 적립</button>
+      <button class="filter-btn" data-phase="전환">🔄 전환</button>
+      <button class="filter-btn" data-phase="대기">⏳ 대기</button>
+      <button class="filter-btn" data-phase="인출">💰 인출</button>
+    </div>
+    <div id="sync-bar">
+      <div id="sync-dot"></div>
+      <span id="sync-msg">구글 드라이브 미연결 — 로컬 저장만 사용 중</span>
+      <button id="btn-refresh" class="sync-action" style="display:none" onclick="doSync()">↻ 동기화</button>
+      <button id="btn-setup" class="sync-action" onclick="openSetup()">⚙ 동기화 설정</button>
+    </div>
+  </div>
+</div>
+
+<div id="body"></div>
+
+<!-- Complete Modal -->
+<div id="ov-complete" class="ov">
+  <div class="mbox">
+    <div class="mhead">✅ 완료 처리</div>
+    <div class="mtitle" id="mc-title"></div>
+    <label class="ml">완료 날짜</label>
+    <input type="date" id="mc-date" class="mi">
+    <label class="ml">메모 (선택)</label>
+    <textarea id="mc-memo" class="mi" rows="3" placeholder="완료 내용, 실행 수치 등..."></textarea>
+    <div class="mbtns">
+      <button class="mcancel" onclick="closeOv('complete')">취소</button>
+      <button class="msave" onclick="saveComplete()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Setup Modal -->
+<div id="ov-setup" class="ov">
+  <div class="mbox setup-box">
+    <div class="mhead">⚙️ Google Drive 동기화 설정</div>
+    <div class="mtitle">Google Apps Script를 백엔드로 사용해<br>어느 기기에서든 같은 데이터를 볼 수 있습니다</div>
+
+    <div class="sblock">
+      <span class="snum">1</span>
+      <strong><a href="https://script.google.com" target="_blank" class="sa">script.google.com</a></strong> 접속 → <strong>새 프로젝트</strong> 클릭
+    </div>
+
+    <div class="sblock">
+      <span class="snum">2</span> <strong>코드 전체 선택 후 아래 코드로 교체</strong> → <code>Ctrl+S</code> 저장
+<div class="scode">const SS_NAME = 'PensionMilestones';
+
+function doGet(e) {
+  const ss = getOrCreateSheet();
+  const val = ss.getSheetByName('data')
+                .getRange(1,1).getValue();
+  const out = ContentService
+    .createTextOutput(val || '[]')
+    .setMimeType(ContentService.MimeType.JSON);
+  return addCors(out);
+}
+
+function doPost(e) {
+  const ss = getOrCreateSheet();
+  ss.getSheetByName('data')
+    .getRange(1,1).setValue(e.postData.contents);
+  return addCors(
+    ContentService.createTextOutput('ok')
+  );
+}
+
+function getOrCreateSheet() {
+  const id = PropertiesService
+    .getScriptProperties().getProperty('SS_ID');
+  if (id) {
+    try { return SpreadsheetApp.openById(id); }
+    catch(e) {}
+  }
+  const ss = SpreadsheetApp.create(SS_NAME);
+  if (!ss.getSheetByName('data'))
+    ss.insertSheet('data');
+  PropertiesService.getScriptProperties()
+    .setProperty('SS_ID', ss.getId());
+  return ss;
+}
+
+function addCors(output) {
+  return output;
+}</div>
+    </div>
+
+    <div class="sblock">
+      <span class="snum">3</span> 상단 메뉴 <strong>배포 → 새 배포</strong> 클릭<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;• 유형: <code>웹 앱</code><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;• 다음 사용자로 실행: <code>나</code><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;• 액세스 권한: <code>모든 사용자</code><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;→ <strong>배포</strong> → 권한 승인 → <strong>웹앱 URL 복사</strong>
+    </div>
+
+    <div class="sblock">
+      <span class="snum">4</span> 복사한 URL을 아래에 붙여넣고 <strong>연결하기</strong> 클릭
+    </div>
+
+    <label class="ml">Apps Script 웹앱 URL</label>
+    <input type="url" id="setup-url" class="mi" placeholder="https://script.google.com/macros/s/.../exec">
+
+    <div class="mbtns">
+      <button class="mcancel" onclick="closeOv('setup')">취소</button>
+      <button class="msave" onclick="saveSetup()">연결하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const LS_DATA = 'pension_ms_v3';
+const LS_URL  = 'pension_gas_url';
+
+const MILESTONES_DEF = [
+  {id:1,  phase:'적립', year:'2026', label:'해외 직접투자 자동이체 50만 중지',        detail:'월 50만 미국주식 자동이체 해지'},
+  {id:2,  phase:'적립', year:'2026', label:'연금저축 월 125만으로 증액',              detail:'KODEX 미국S&P500TR 신규 적립 (기존 50만 → 125만)'},
+  {id:3,  phase:'적립', year:'2026', label:'IRP1 삼성증권 월 25만 재개',             detail:'KODEX 미국S&P500TR, 위험자산 70% 비중 확인 후 진행'},
+  {id:4,  phase:'적립', year:'2026', label:'ISA 계좌 개설 (삼성증권)',               detail:'입금 없이 계좌만 개설, 한도 이월 시작. 2027년 RIA 자금 이체 대기'},
+  {id:5,  phase:'적립', year:'2026', label:'VOO 매도 시작 (월 75만)',                detail:'키움 HTS 양도소득세 자료조회에서 원화 기준 예상세액 확인 후 분할매도 개시'},
+  {id:6,  phase:'적립', year:'2026', label:'RIA 계좌 개설',                         detail:'1분기 내 개설 시 양도세 100% 감면 (2분기 80%, 하반기 50%)'},
+  {id:7,  phase:'적립', year:'2026', label:'SPY 대체입고 (키움 → RIA)',              detail:'고객센터 전화 필수, 현물 이전 방식으로 진행'},
+  {id:8,  phase:'적립', year:'2026', label:'RIA에서 SPY 매도 (양도소득세 확인)',      detail:'키움 HTS → 해외주식 → 양도소득세 자료조회에서 원화 기준 확인 후 매도. 1분기 100% 감면'},
+  {id:9,  phase:'적립', year:'2026', label:'KOSPI200 ETF 매수 (1년 보유 시작)',      detail:'RIA 매도금으로 KODEX200 등 국내 지수추종 ETF 매수. 1년 유지 필수'},
+  {id:10, phase:'전환', year:'2027', label:'RIA 1차 매도 → ISA 이체',               detail:'2026~2027 이월 한도 포함 최대 4,000만원 ISA 입금. KODEX 미국S&P500TR 적립'},
+  {id:11, phase:'전환', year:'2028', label:'RIA 2차 매도 → ISA 이체',               detail:'누적 이월 한도 최대 6,000만원. ISA에서 KODEX 미국S&P500TR 적립'},
+  {id:12, phase:'전환', year:'2028', label:'DB 퇴직금 예상액 HR 문의',               detail:'전체 플랜의 핵심 변수. 임금피크제 해당 여부 및 DC 전환 타이밍 동시 확인'},
+  {id:13, phase:'전환', year:'2028', label:'퇴직 및 DB→IRP 이전',                   detail:'DB퇴직금 IRP 수령 시 퇴직소득세 30~40% 감면 시작. 2028년 말 예정'},
+  {id:14, phase:'전환', year:'2028', label:'전세 → 실거주 전환',                     detail:'전세 만료 후 보유 아파트 입주. 월세 192만 절감 시작'},
+  {id:15, phase:'전환', year:'2029', label:'RIA 3차 매도 → ISA 이체 (잔여 전액)',    detail:'RIA 잔여 금액 전액 ISA 이체. 이후 RIA 계좌 정리'},
+  {id:16, phase:'전환', year:'2029', label:'건강보험 임의계속가입 (2년)',              detail:'직장보험 계속 유지, 월 약 36.7만원. 2031년까지 유지'},
+  {id:17, phase:'전환', year:'2030', label:'ISA 만기 → 연금저축 이전',               detail:'연금전환서비스 이용 필수 (직접 이체 시 혜택 없음). 추가 세액공제 300만원 확보, 환급 39.6만원'},
+  {id:18, phase:'대기', year:'2031', label:'건보료 피부양자 전환',                    detail:'사적연금 과세분 1,500만 < 2,000만 조건 유지 시 건보료 0원. 2038년까지 유지 목표'},
+  {id:19, phase:'대기', year:'2034', label:'납입 종료, 자연 성장 구간 진입',          detail:'연금저축·IRP 납입 종료. 복리 성장만으로 자산 증가 구간 시작'},
+  {id:20, phase:'인출', year:'2035', label:'연금 인출 시작 (만 61세)',               detail:'비과세 원금 먼저 소진 (세금 0) → 과세분 연 1,500만 이하 유지. 퇴직금 IRP는 최대한 유예'},
+  {id:21, phase:'인출', year:'2039', label:'국민연금 개시 (만 65세)',                detail:'월 약 180만원 예상. 지역가입자 전환(월 36만~), 사적연금 월 100~125만 조정. 합계 월 280~305만 목표'},
+  {id:22, phase:'인출', year:'2044', label:'IRP 인출 시작 (만 70세)',               detail:'연금소득세 3.3%로 낮아지므로 인출액 확대 유리. 퇴직금 IRP 감면율 극대화 (40%+)'},
+];
+
+function initState(defs) {
+  return defs.map(d => ({...d, done:false, date:'', memo:''}));
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let ms = [];
+let gasUrl = '';
+let activeId = null;
+let activeOv = null;
+let curFilter = '전체';
+
+function loadLocal() {
+  try {
+    const s = localStorage.getItem(LS_DATA);
+    if (s) return JSON.parse(s);
+  } catch {}
+  return initState(MILESTONES_DEF);
+}
+function saveLocal() {
+  try { localStorage.setItem(LS_DATA, JSON.stringify(ms)); } catch {}
+}
+
+// ─── SYNC ─────────────────────────────────────────────────────────────────────
+function syncStatus(state, msg) {
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-msg');
+  const rbtn = document.getElementById('btn-refresh');
+  dot.className = state === 'ok' ? 'ok' : state === 'err' ? 'err' : state === 'spin' ? 'spin' : '';
+  txt.textContent = msg;
+  rbtn.style.display = gasUrl ? 'inline' : 'none';
+}
+
+async function gasGet() {
+  if (!gasUrl) return null;
+  try {
+    const r = await fetch(gasUrl + '?t=' + Date.now());
+    const text = await r.text();
+    const data = JSON.parse(text);
+    return Array.isArray(data) && data.length ? data : null;
+  } catch { return null; }
+}
+
+async function gasPost(data) {
+  if (!gasUrl) return false;
+  try {
+    await fetch(gasUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    return true;
+  } catch { return false; }
+}
+
+async function doSync() {
+  syncStatus('spin', '구글 드라이브에서 불러오는 중...');
+  const remote = await gasGet();
+  if (remote) {
+    ms = remote;
+    saveLocal();
+    render();
+    syncStatus('ok', '동기화 완료 · ' + ts());
+  } else {
+    syncStatus('err', '불러오기 실패 — URL을 확인해 주세요');
+  }
+}
+
+async function pushAndSync() {
+  saveLocal();
+  if (!gasUrl) return;
+  syncStatus('spin', '저장 중...');
+  const ok = await gasPost(ms);
+  syncStatus(ok ? 'ok' : 'err', ok
+    ? '구글 드라이브에 저장 완료 · ' + ts()
+    : '저장 실패 — 로컬에만 저장됨');
+}
+
+function ts() {
+  return new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'});
+}
+
+// ─── SETUP ────────────────────────────────────────────────────────────────────
+function openSetup() {
+  document.getElementById('setup-url').value = gasUrl;
+  openOv('setup');
+}
+async function saveSetup() {
+  const url = document.getElementById('setup-url').value.trim();
+  if (!url) { alert('URL을 입력해주세요'); return; }
+  gasUrl = url;
+  localStorage.setItem(LS_URL, url);
+  closeOv('setup');
+  syncStatus('spin', '연결 확인 중...');
+  const remote = await gasGet();
+  document.getElementById('btn-refresh').style.display = 'inline';
+  if (remote && remote.length) {
+    if (confirm('구글 드라이브에 저장된 데이터를 불러올까요?\n(현재 기기 데이터가 덮어씌워집니다)')) {
+      ms = remote; saveLocal(); render();
+    } else {
+      await gasPost(ms);
+    }
+    syncStatus('ok', '연결 완료 · 데이터 불러옴 · ' + ts());
+  } else {
+    syncStatus('spin', '초기 데이터 업로드 중...');
+    await gasPost(ms);
+    syncStatus('ok', '연결 완료 · 초기 데이터 저장됨 · ' + ts());
+  }
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function openOv(id)  { document.getElementById('ov-'+id).classList.add('show'); activeOv = id; }
+function closeOv(id) { document.getElementById('ov-'+id).classList.remove('show'); if(activeOv===id) activeOv=null; }
+
+function toggleMs(id) {
+  const m = ms.find(x => x.id === id);
+  if (!m) return;
+  if (m.done) { undoMs(id); return; }
+  activeId = id;
+  document.getElementById('mc-title').textContent = m.label;
+  document.getElementById('mc-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('mc-memo').value = '';
+  openOv('complete');
+}
+
+function undoMs(id) {
+  ms = ms.map(m => m.id === id ? {...m, done:false, date:'', memo:''} : m);
+  pushAndSync();
+  render();
+}
+
+async function saveComplete() {
+  if (!activeId) return;
+  const date = document.getElementById('mc-date').value;
+  const memo = document.getElementById('mc-memo').value.trim();
+  ms = ms.map(m => m.id === activeId ? {...m, done:true, date, memo} : m);
+  closeOv('complete');
+  await pushAndSync();
+  render();
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+const PICO = {적립:'📈', 전환:'🔄', 대기:'⏳', 인출:'💰'};
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function render() {
+  const done  = ms.filter(m => m.done).length;
+  const total = ms.length;
+  const pct   = Math.round(done / total * 100);
+  const cur   = ms.find(m => !m.done);
+
+  document.getElementById('pct-val').textContent  = pct + '%';
+  document.getElementById('pct-sub').textContent  = done + '/' + total + ' 완료';
+  document.getElementById('progress-fill').style.width = pct + '%';
+
+  if (cur) {
+    document.getElementById('current-text').textContent = cur.label;
+    document.getElementById('current-year').textContent = cur.year + '년';
+    document.getElementById('current-banner').style.display = 'flex';
+  } else {
+    document.getElementById('current-banner').style.display = 'none';
+  }
+
+  const visible = curFilter === '전체' ? ms : ms.filter(m => m.phase === curFilter);
+  const byYear  = {};
+  visible.forEach(m => { (byYear[m.year] = byYear[m.year] || []).push(m); });
+
+  const body = document.getElementById('body');
+  body.innerHTML = '';
+
+  Object.entries(byYear).forEach(([year, items]) => {
+    const dn = items.filter(x => x.done).length;
+    const grp = document.createElement('div');
+    grp.className = 'year-group';
+    grp.innerHTML = `
+      <div class="year-header">
+        <span class="year-label">${year}년</span>
+        <div class="year-divider"></div>
+        <span class="year-count">${dn}/${items.length}</span>
+      </div>
+      <div class="year-items" id="y${year}"></div>`;
+    body.appendChild(grp);
+    const container = document.getElementById('y' + year);
+
+    items.forEach(m => {
+      const isCur = cur?.id === m.id;
+      const el = document.createElement('div');
+      el.className = 'ms-card' + (isCur ? ' current' : '') + (m.done ? ' done' : '');
+      el.innerHTML = `
+        ${isCur ? '<div class="cur-stripe"></div>' : ''}
+        <button class="check-btn${m.done ? ' chk' : ''}" onclick="toggleMs(${m.id})">
+          ${m.done ? '<span class="chk-tick">✓</span>' : ''}
+        </button>
+        <div class="card-body">
+          <div class="card-top">
+            <span class="card-title${m.done ? ' done' : ''}">${esc(m.label)}</span>
+            <span class="pbadge ${m.phase}">${PICO[m.phase]} ${m.phase}</span>
+            ${isCur ? '<span class="cur-badge">현재 위치</span>' : ''}
+          </div>
+          <p class="card-detail">${esc(m.detail)}</p>
+          ${m.done ? `
+          <div class="done-info">
+            <span class="done-date">✓ ${m.date}</span>
+            ${m.memo ? `<span class="done-memo">${esc(m.memo)}</span>` : ''}
+            <button class="undo-btn" onclick="undoMs(${m.id})">되돌리기</button>
+          </div>` : ''}
+        </div>`;
+      container.appendChild(el);
+    });
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn =>
+  btn.addEventListener('click', () => {
+    curFilter = btn.dataset.phase;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  })
+);
+document.querySelectorAll('.ov').forEach(el =>
+  el.addEventListener('click', e => { if (e.target === el) closeOv(el.id.replace('ov-','')); })
+);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && activeOv) closeOv(activeOv); });
+
+ms     = loadLocal();
+gasUrl = localStorage.getItem(LS_URL) || '';
+
+if (gasUrl) {
+  document.getElementById('btn-refresh').style.display = 'inline';
+  syncStatus('spin', '구글 드라이브에서 최신 데이터 확인 중...');
+  gasGet().then(remote => {
+    if (remote) {
+      ms = remote; saveLocal(); render();
+      syncStatus('ok', '자동 동기화 완료 · ' + ts());
+    } else {
+      syncStatus('err', '연결 실패 — 로컬 데이터 사용 중');
+    }
+  });
+} else {
+  syncStatus('', '구글 드라이브 미연결');
+}
+
+render();
+</script>
+</body>
+</html>

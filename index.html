@@ -528,7 +528,7 @@ if (gasUrl) {
   syncStatus('spin', '구글 드라이브에서 최신 데이터 확인 중...');
   gasGet().then(remote => {
     if (remote) {
-      ms = remote; saveLocal(); render();
+      ms = mergeRemote(remote); saveLocal(); render();  // ← 순서 고정, 상태만 병합
       syncStatus('ok', '자동 동기화 완료 · ' + ts());
     } else {
       syncStatus('err', '연결 실패 — 로컬 데이터 사용 중');

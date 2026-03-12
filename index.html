@@ -289,7 +289,13 @@ let curFilter = '전체';
 function loadLocal() {
   try {
     const s = localStorage.getItem(LS_DATA);
-    if (s) return JSON.parse(s);
+    if (s) {
+      const stored = JSON.parse(s);
+      // 순서는 항상 MILESTONES_DEF 기준, done/date/memo만 복원
+      const byId = {};
+      stored.forEach(r => { byId[r.id] = { done: r.done || false, date: r.date || '', memo: r.memo || '' }; });
+      return initState(MILESTONES_DEF).map(m => ({ ...m, ...(byId[m.id] || {}) }));
+    }
   } catch {}
   return initState(MILESTONES_DEF);
 }

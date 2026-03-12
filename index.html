@@ -330,11 +330,24 @@ async function gasPost(data) {
   } catch { return false; }
 }
 
+// 원격 데이터(done/date/memo)만 로컬 순서 기준으로 병합
+// → 카드 순서는 코드(MILESTONES_DEF) 기준 고정
+function mergeRemote(remote) {
+  const byId = {};
+  (remote || []).forEach(r => {
+    byId[r.id] = { done: r.done || false, date: r.date || '', memo: r.memo || '' };
+  });
+  return initState(MILESTONES_DEF).map(m => ({
+    ...m,
+    ...(byId[m.id] || {})
+  }));
+}
+
 async function doSync() {
   syncStatus('spin', '구글 드라이브에서 불러오는 중...');
   const remote = await gasGet();
   if (remote) {
-    ms = remote;
+    ms = mergeRemote(remote);   // ← 순서 고정, 완료 상태만 반영
     saveLocal();
     render();
     syncStatus('ok', '동기화 완료 · ' + ts());
@@ -372,8 +385,8 @@ async function saveSetup() {
   const remote = await gasGet();
   document.getElementById('btn-refresh').style.display = 'inline';
   if (remote && remote.length) {
-    if (confirm('구글 드라이브에 저장된 데이터를 불러올까요?\n(현재 기기 데이터가 덮어씌워집니다)')) {
-      ms = remote; saveLocal(); render();
+    if (confirm('구글 드라이브에 저장된 데이터를 불러올까요?\n(완료 상태만 병합, 카드 순서는 최신 코드 기준)')) {
+      ms = mergeRemote(remote); saveLocal(); render();
     } else {
       await gasPost(ms);
     }

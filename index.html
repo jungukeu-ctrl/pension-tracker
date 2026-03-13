@@ -49,7 +49,6 @@
   #sync-msg{color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sync-action{font-size:11px;background:transparent;border:none;cursor:pointer;font-family:inherit;padding:0;white-space:nowrap;flex-shrink:0}
   #btn-refresh{color:var(--blue)}#btn-refresh:hover{text-decoration:underline}
-  #btn-setup{color:var(--amber)}#btn-setup:hover{text-decoration:underline}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
   /* BODY */
@@ -104,15 +103,6 @@
   .mcancel:hover{border-color:var(--text2);color:var(--text2)}
   .msave{background:#3B82F6;border:none;border-radius:8px;padding:8px 22px;color:#fff;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
   .msave:hover{background:#2563EB}
-
-  /* SETUP MODAL */
-  .setup-box{max-width:520px}
-  .sblock{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:12px;color:var(--muted2);line-height:1.7}
-  .sblock strong{color:var(--text2)}
-  .snum{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--blue-bg);border:1px solid var(--blue-bd);color:var(--blue);font-size:10px;font-weight:700;margin-right:6px;vertical-align:middle}
-  .scode{background:#0A0D14;border:1px solid var(--border2);border-radius:8px;padding:12px;margin:8px 0;font-size:11px;color:#94A3B8;font-family:'Courier New',monospace;line-height:1.7;white-space:pre;overflow-x:auto}
-  .sa{color:var(--blue);font-size:12px}
-  code{background:var(--border2);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--amber);font-family:'Courier New',monospace}
 </style>
 </head>
 <body>
@@ -144,9 +134,8 @@
     </div>
     <div id="sync-bar">
       <div id="sync-dot"></div>
-      <span id="sync-msg">구글 드라이브 미연결 — 로컬 저장만 사용 중</span>
-      <button id="btn-refresh" class="sync-action" style="display:none" onclick="doSync()">↻ 동기화</button>
-      <button id="btn-setup" class="sync-action" onclick="openSetup()">⚙ 동기화 설정</button>
+      <span id="sync-msg">연결 중...</span>
+      <button id="btn-refresh" class="sync-action" onclick="doSync()">↻ 동기화</button>
     </div>
   </div>
 </div>
@@ -169,86 +158,16 @@
   </div>
 </div>
 
-<!-- Setup Modal -->
-<div id="ov-setup" class="ov">
-  <div class="mbox setup-box">
-    <div class="mhead">⚙️ Google Drive 동기화 설정</div>
-    <div class="mtitle">Google Apps Script를 백엔드로 사용해<br>어느 기기에서든 같은 데이터를 볼 수 있습니다</div>
-
-    <div class="sblock">
-      <span class="snum">1</span>
-      <strong><a href="https://script.google.com" target="_blank" class="sa">script.google.com</a></strong> 접속 → <strong>새 프로젝트</strong> 클릭
-    </div>
-
-    <div class="sblock">
-      <span class="snum">2</span> <strong>코드 전체 선택 후 아래 코드로 교체</strong> → <code>Ctrl+S</code> 저장
-<div class="scode">const SS_NAME = 'PensionMilestones';
-
-function doGet(e) {
-  const ss = getOrCreateSheet();
-  const val = ss.getSheetByName('data')
-                .getRange(1,1).getValue();
-  const out = ContentService
-    .createTextOutput(val || '[]')
-    .setMimeType(ContentService.MimeType.JSON);
-  return addCors(out);
-}
-
-function doPost(e) {
-  const ss = getOrCreateSheet();
-  ss.getSheetByName('data')
-    .getRange(1,1).setValue(e.postData.contents);
-  return addCors(
-    ContentService.createTextOutput('ok')
-  );
-}
-
-function getOrCreateSheet() {
-  const id = PropertiesService
-    .getScriptProperties().getProperty('SS_ID');
-  if (id) {
-    try { return SpreadsheetApp.openById(id); }
-    catch(e) {}
-  }
-  const ss = SpreadsheetApp.create(SS_NAME);
-  if (!ss.getSheetByName('data'))
-    ss.insertSheet('data');
-  PropertiesService.getScriptProperties()
-    .setProperty('SS_ID', ss.getId());
-  return ss;
-}
-
-function addCors(output) {
-  return output;
-}</div>
-    </div>
-
-    <div class="sblock">
-      <span class="snum">3</span> 상단 메뉴 <strong>배포 → 새 배포</strong> 클릭<br>
-      &nbsp;&nbsp;&nbsp;&nbsp;• 유형: <code>웹 앱</code><br>
-      &nbsp;&nbsp;&nbsp;&nbsp;• 다음 사용자로 실행: <code>나</code><br>
-      &nbsp;&nbsp;&nbsp;&nbsp;• 액세스 권한: <code>모든 사용자</code><br>
-      &nbsp;&nbsp;&nbsp;&nbsp;→ <strong>배포</strong> → 권한 승인 → <strong>웹앱 URL 복사</strong>
-    </div>
-
-    <div class="sblock">
-      <span class="snum">4</span> 복사한 URL을 아래에 붙여넣고 <strong>연결하기</strong> 클릭
-    </div>
-
-    <label class="ml">Apps Script 웹앱 URL</label>
-    <input type="url" id="setup-url" class="mi" placeholder="https://script.google.com/macros/s/.../exec">
-
-    <div class="mbtns">
-      <button class="mcancel" onclick="closeOv('setup')">취소</button>
-      <button class="msave" onclick="saveSetup()">연결하기</button>
-    </div>
-  </div>
-</div>
-
 <script>
+// ═══════════════════════════════════════════════════════════════════════════════
+//  ★ GAS 동기화 URL — 하드코딩
+//  어느 기기에서든 페이지만 열면 자동으로 동기화됩니다.
+//  URL을 변경하려면 아래 값만 교체 후 GitHub에 push하세요.
+// ═══════════════════════════════════════════════════════════════════════════════
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxaqu-QoDCQLf0eALIYW5uJdn3hCMXn2WjRO72deAaxYyb_H_FV73JtFytS_x8fl4R5qw/exec';
+
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const LS_DATA = 'pension_ms_v3';
-const LS_URL  = 'pension_gas_url';
 
 const MILESTONES_DEF = [
   {id:1,  phase:'적립', year:'2026', label:'해외 직접투자 자동이체 50만 중지',        detail:'월 50만 미국주식 자동이체 해지'},
@@ -281,7 +200,6 @@ function initState(defs) {
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let ms = [];
-let gasUrl = '';
 let activeId = null;
 let activeOv = null;
 let curFilter = '전체';
@@ -306,16 +224,13 @@ function saveLocal() {
 function syncStatus(state, msg) {
   const dot = document.getElementById('sync-dot');
   const txt = document.getElementById('sync-msg');
-  const rbtn = document.getElementById('btn-refresh');
   dot.className = state === 'ok' ? 'ok' : state === 'err' ? 'err' : state === 'spin' ? 'spin' : '';
   txt.textContent = msg;
-  rbtn.style.display = gasUrl ? 'inline' : 'none';
 }
 
 async function gasGet() {
-  if (!gasUrl) return null;
   try {
-    const r = await fetch(gasUrl + '?t=' + Date.now());
+    const r = await fetch(GAS_URL + '?t=' + Date.now());
     const text = await r.text();
     const data = JSON.parse(text);
     return Array.isArray(data) && data.length ? data : null;
@@ -323,9 +238,8 @@ async function gasGet() {
 }
 
 async function gasPost(data) {
-  if (!gasUrl) return false;
   try {
-    await fetch(gasUrl, {
+    await fetch(GAS_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: {'Content-Type':'application/json'},
@@ -355,13 +269,12 @@ async function doSync() {
     render();
     syncStatus('ok', '동기화 완료 · ' + ts());
   } else {
-    syncStatus('err', '불러오기 실패 — URL을 확인해 주세요');
+    syncStatus('err', '불러오기 실패 — 네트워크를 확인해 주세요');
   }
 }
 
 async function pushAndSync() {
   saveLocal();
-  if (!gasUrl) return;
   syncStatus('spin', '저장 중...');
   const ok = await gasPost(ms);
   syncStatus(ok ? 'ok' : 'err', ok
@@ -371,34 +284,6 @@ async function pushAndSync() {
 
 function ts() {
   return new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'});
-}
-
-// ─── SETUP ────────────────────────────────────────────────────────────────────
-function openSetup() {
-  document.getElementById('setup-url').value = gasUrl;
-  openOv('setup');
-}
-async function saveSetup() {
-  const url = document.getElementById('setup-url').value.trim();
-  if (!url) { alert('URL을 입력해주세요'); return; }
-  gasUrl = url;
-  localStorage.setItem(LS_URL, url);
-  closeOv('setup');
-  syncStatus('spin', '연결 확인 중...');
-  const remote = await gasGet();
-  document.getElementById('btn-refresh').style.display = 'inline';
-  if (remote && remote.length) {
-    if (confirm('구글 드라이브에 저장된 데이터를 불러올까요?\n(완료 상태만 병합, 카드 순서는 최신 코드 기준)')) {
-      ms = mergeRemote(remote); saveLocal(); render();
-    } else {
-      await gasPost(ms);
-    }
-    syncStatus('ok', '연결 완료 · 데이터 불러옴 · ' + ts());
-  } else {
-    syncStatus('spin', '초기 데이터 업로드 중...');
-    await gasPost(ms);
-    syncStatus('ok', '연결 완료 · 초기 데이터 저장됨 · ' + ts());
-  }
 }
 
 // ─── MODALS ───────────────────────────────────────────────────────────────────
@@ -517,52 +402,20 @@ document.querySelectorAll('.ov').forEach(el =>
 );
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && activeOv) closeOv(activeOv); });
 
-ms     = loadLocal();
-gasUrl = localStorage.getItem(LS_URL) || '';
+ms = loadLocal();
 
-// ── URL 파라미터로 GAS URL 자동 설정 ──────────────────────────────────────────
-// 방법 1 (권장): #sync=URL  — 해시 방식. GitHub Pages 리다이렉트에도 절대 유실 안됨
-// 방법 2 (폴백): ?sync=URL  — 쿼리 방식. 일부 환경에서 리다이렉트 시 유실 가능
-//
-// 사용 예시:
-//   https://jungukeu-ctrl.github.io/pension-tracker/#sync=https://script.google.com/macros/s/.../exec
-//
-// 한번 접속하면 localStorage에 저장되므로 이후에는 파라미터 없이도 유지됩니다.
-(function() {
-  var syncVal = '';
-  // 1) 해시에서 읽기 (#sync=...)  ← 권장, 리다이렉트에 안전
-  var hashMatch = location.hash.match(/^#sync=(.+)/);
-  if (hashMatch) {
-    syncVal = decodeURIComponent(hashMatch[1]);
+// ── 페이지 로드 시 자동 동기화 ──
+syncStatus('spin', '구글 드라이브에서 최신 데이터 확인 중...');
+gasGet().then(remote => {
+  if (remote) {
+    ms = mergeRemote(remote);
+    saveLocal();
+    render();
+    syncStatus('ok', '자동 동기화 완료 · ' + ts());
+  } else {
+    syncStatus('err', '연결 실패 — 로컬 데이터 사용 중');
   }
-  // 2) 쿼리에서 읽기 (?sync=...)  ← 폴백
-  if (!syncVal) {
-    try {
-      var qp = new URLSearchParams(location.search);
-      if (qp.has('sync')) syncVal = qp.get('sync');
-    } catch(e) {}
-  }
-  // 적용
-  if (syncVal) {
-    gasUrl = syncVal;
-    localStorage.setItem(LS_URL, gasUrl);
-  }
-})();
-
-if (gasUrl) {
-  document.getElementById('btn-refresh').style.display = 'inline';
-  syncStatus('spin', '구글 드라이브에서 최신 데이터 확인 중...');
-  gasGet().then(remote => {
-    if (remote) {
-      ms = mergeRemote(remote); saveLocal(); render();
-      syncStatus('ok', '자동 동기화 완료 · ' + ts());
-    } else {
-      syncStatus('err', '연결 실패 — 로컬 데이터 사용 중');
-    }
-  });
-} else {
-  syncStatus('', '구글 드라이브 미연결');
-}
+});
 
 render();
 </script>

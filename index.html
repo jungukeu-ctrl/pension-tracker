@@ -521,14 +521,33 @@ ms     = loadLocal();
 gasUrl = localStorage.getItem(LS_URL) || '';
 
 // ── URL 파라미터로 GAS URL 자동 설정 ──────────────────────────────────────────
-// 사용법: ?sync=https://script.google.com/macros/s/.../exec
-// 어느 기기에서든 이 링크로 접속하면 수동 설정 없이 자동 연결됩니다.
-// 한번 접속하면 localStorage에 저장되므로 이후에는 ?sync= 없이도 유지됩니다.
-const _syncParam = new URLSearchParams(location.search).get('sync');
-if (_syncParam) {
-  gasUrl = _syncParam;
-  localStorage.setItem(LS_URL, gasUrl);
-}
+// 방법 1 (권장): #sync=URL  — 해시 방식. GitHub Pages 리다이렉트에도 절대 유실 안됨
+// 방법 2 (폴백): ?sync=URL  — 쿼리 방식. 일부 환경에서 리다이렉트 시 유실 가능
+//
+// 사용 예시:
+//   https://jungukeu-ctrl.github.io/pension-tracker/#sync=https://script.google.com/macros/s/.../exec
+//
+// 한번 접속하면 localStorage에 저장되므로 이후에는 파라미터 없이도 유지됩니다.
+(function() {
+  var syncVal = '';
+  // 1) 해시에서 읽기 (#sync=...)  ← 권장, 리다이렉트에 안전
+  var hashMatch = location.hash.match(/^#sync=(.+)/);
+  if (hashMatch) {
+    syncVal = decodeURIComponent(hashMatch[1]);
+  }
+  // 2) 쿼리에서 읽기 (?sync=...)  ← 폴백
+  if (!syncVal) {
+    try {
+      var qp = new URLSearchParams(location.search);
+      if (qp.has('sync')) syncVal = qp.get('sync');
+    } catch(e) {}
+  }
+  // 적용
+  if (syncVal) {
+    gasUrl = syncVal;
+    localStorage.setItem(LS_URL, gasUrl);
+  }
+})();
 
 if (gasUrl) {
   document.getElementById('btn-refresh').style.display = 'inline';

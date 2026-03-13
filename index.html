@@ -291,7 +291,6 @@ function loadLocal() {
     const s = localStorage.getItem(LS_DATA);
     if (s) {
       const stored = JSON.parse(s);
-      // 순서는 항상 MILESTONES_DEF 기준, done/date/memo만 복원
       const byId = {};
       stored.forEach(r => { byId[r.id] = { done: r.done || false, date: r.date || '', memo: r.memo || '' }; });
       return initState(MILESTONES_DEF).map(m => ({ ...m, ...(byId[m.id] || {}) }));
@@ -336,8 +335,6 @@ async function gasPost(data) {
   } catch { return false; }
 }
 
-// 원격 데이터(done/date/memo)만 로컬 순서 기준으로 병합
-// → 카드 순서는 코드(MILESTONES_DEF) 기준 고정
 function mergeRemote(remote) {
   const byId = {};
   (remote || []).forEach(r => {
@@ -353,7 +350,7 @@ async function doSync() {
   syncStatus('spin', '구글 드라이브에서 불러오는 중...');
   const remote = await gasGet();
   if (remote) {
-    ms = mergeRemote(remote);   // ← 순서 고정, 완료 상태만 반영
+    ms = mergeRemote(remote);
     saveLocal();
     render();
     syncStatus('ok', '동기화 완료 · ' + ts());
@@ -523,12 +520,22 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && activeOv) 
 ms     = loadLocal();
 gasUrl = localStorage.getItem(LS_URL) || '';
 
+// ── URL 파라미터로 GAS URL 자동 설정 ──────────────────────────────────────────
+// 사용법: ?sync=https://script.google.com/macros/s/.../exec
+// 어느 기기에서든 이 링크로 접속하면 수동 설정 없이 자동 연결됩니다.
+// 한번 접속하면 localStorage에 저장되므로 이후에는 ?sync= 없이도 유지됩니다.
+const _syncParam = new URLSearchParams(location.search).get('sync');
+if (_syncParam) {
+  gasUrl = _syncParam;
+  localStorage.setItem(LS_URL, gasUrl);
+}
+
 if (gasUrl) {
   document.getElementById('btn-refresh').style.display = 'inline';
   syncStatus('spin', '구글 드라이브에서 최신 데이터 확인 중...');
   gasGet().then(remote => {
     if (remote) {
-      ms = mergeRemote(remote); saveLocal(); render();  // ← 순서 고정, 상태만 병합
+      ms = mergeRemote(remote); saveLocal(); render();
       syncStatus('ok', '자동 동기화 완료 · ' + ts());
     } else {
       syncStatus('err', '연결 실패 — 로컬 데이터 사용 중');
